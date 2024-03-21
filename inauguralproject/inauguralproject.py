@@ -40,7 +40,8 @@ class ExchangeEconomyClass():
             p1 = float(p1)
 
         x1A = par.alpha * ((p1*par.w1A+par.w2A)/p1)  
-        x1B = max(0, min(1,1 - x1A))  # Ensure x1B is between 0 and 1
+        x1A = max(0, min(1, x1A))  # Ensure x1B is between 0 and 1
+        x1B = 1 - x1A
         x2A = (1-par.alpha) * (p1*par.w1A+par.w2A)
         x2B = max(0, min(1,1 - x2A))  # Ensure x2B is between 0 and 1
 
@@ -54,7 +55,7 @@ class ExchangeEconomyClass():
             p1 = float(p1)
 
         x1B = par.beta * ((p1*par.w1B+par.w2B)/p1)
-        x1A = max(0, min(1, - x1B))  # Ensure x1A is between 0 and 1
+        x1B = max(0, min(1, x1B))  # Ensure x1A is between 0 and 1
         x2B = (1 - par.beta) * (p1*par.w1B+par.w2B)
         x2A = max(0, min(1,1 - x2B))  # Ensure x2A is between 0 and 1
 
@@ -171,7 +172,7 @@ class ExchangeEconomyClass():
     
         # Iterate over positive values for p1
 
-        for p1 in range(1, 100):
+        for p1 in range(1, 1000):
 
             # Calculate the demand for goods A using p1
 
@@ -344,9 +345,62 @@ class ExchangeEconomyClass():
 
         return x1A_optimal, x2A_optimal
     
-
+    #Question 7: creating the set W
+    
+    def Wset(self):
         
+        par=self.par
+        # Set the seed for reproducibility
+        np.random.seed(42)
 
+        # Number of elements in the set
+        num_elements = 50
+
+        # Generate random values for ωA1 and ωA2
+        par.w1A = np.random.uniform(0, 1, num_elements)
+        par.w2A = np.random.uniform(0, 1, num_elements)
+
+        # Create a set W with pairs (ωA1, ωA2)
+        W = list(zip(par.w1A, par.w2A))
+
+        return W
+    
+    #Question 8: 
+
+    def market_clearing_allocation(self, endowment):
+        par = self.par
+
+        # Calculate the total endowments for goods 1 and 2
+        total_endowment_1 = par.w1A + par.w1B
+        total_endowment_2 = par.w2A + par.w2B
+
+        # Calculate the total demand for goods 1 and 2
+        demand_A = self.demand_A(endowment[0])
+        demand_B = self.demand_B(endowment[0])
+
+        # Extract individual demand components
+        total_demand_1A = demand_A[0]
+        total_demand_2A = demand_A[1]
+        total_demand_1B = demand_B[0]
+        total_demand_2B = demand_B[1]
+
+        # Calculate the allocations for agent A
+        x1A = total_demand_1A
+        x2A = total_demand_2A
+
+        # Calculate the allocations for agent B
+        x1B = total_demand_1B
+        x2B = total_demand_2B
+
+        return x1A, x2A, x1B, x2B
+    
+    def all_market_clearing_allocations(self):
+        W = self.Wset()
+        allocations = []
+        for endowment in W:
+            allocation = self.market_clearing_allocation(endowment)
+            allocations.append(allocation)
+        return allocations
        
 
 
