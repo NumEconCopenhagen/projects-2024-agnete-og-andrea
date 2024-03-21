@@ -40,7 +40,9 @@ class ExchangeEconomyClass():
             p1 = float(p1)
 
         x1A = par.alpha * ((p1*par.w1A+par.w2A)/p1)  
+        x1B = max(0, min(1,1 - x1A))  # Ensure x1B is between 0 and 1
         x2A = (1-par.alpha) * (p1*par.w1A+par.w2A)
+        x2B = max(0, min(1,1 - x2A))  # Ensure x2B is between 0 and 1
 
         return np.array([x1A, x2A])
 
@@ -48,8 +50,13 @@ class ExchangeEconomyClass():
 
         par = self.par
 
-        x1B = par.beta * ((p1*par.w1B+par.w2B)/p1)  
-        x2B = (1-par.beta) * (p1*par.w1B+par.w2B)
+        if not isinstance(p1, (int, float)):
+            p1 = float(p1)
+
+        x1B = par.beta * ((p1*par.w1B+par.w2B)/p1)
+        x1A = max(0, min(1, - x1B))  # Ensure x1A is between 0 and 1
+        x2B = (1 - par.beta) * (p1*par.w1B+par.w2B)
+        x2A = max(0, min(1,1 - x2B))  # Ensure x2A is between 0 and 1
 
         return np.array([x1B, x2B])
 
@@ -109,12 +116,14 @@ class ExchangeEconomyClass():
 
             self.eps1, self.eps2 = self.check_market_clearing(p1)
             errors.append((self.eps1, self.eps2))
+
         return errors
     
     #Question 2 & Question 3: Market clearing price
+
     def market_clearing_price(self):
 
-        p1_range = self.P1set()
+        p1_range = range(1, 100)
         errors = self.Q2errors(p1_range)
 
         market_clearing_price_index = np.argmin(np.abs(errors))
@@ -122,20 +131,35 @@ class ExchangeEconomyClass():
         market_clearing_price = list(p1_range)[market_clearing_price_index]
 
         return market_clearing_price
-    
+
     #Question 4a: 
 
     def optimal_allocation_4a(self):
-    
-        # Get the utility maximizing price of good 1 (p1) for p1 in p1_range
-    
-        p1_optimal_4a = self.market_clearing_price()
 
-        # Find the allocation of (x1A, x2A) for the utility maximizing price of good 1
+        p1_range = self.P1set() # Use the P1set for generating p1 values
 
-        x1A_optimal, x2A_optimal = self.demand_A(p1_optimal_4a)
+        max_utility = float('-inf')
 
-        return x1A_optimal, x2A_optimal
+        optimal_allocation = None
+
+        for p1 in p1_range:
+
+            x1A, x2A = self.demand_A(p1)  # Extract x1A and x2A from demand_A
+            # Check if x1A and x2A are within the valid range
+
+            if 0 <= x1A <= 1 and 0 <= x2A <= 1:
+
+                utility = self.utility_A(x1A, x2A)
+
+                if utility > max_utility:
+
+                    max_utility = utility
+                    optimal_allocation = (x1A, x2A)
+
+        x1A_rounded = round(optimal_allocation[0], 3)
+        x2A_rounded = round(optimal_allocation[1], 3)
+
+        return x1A_rounded, x2A_rounded            
 
     #Question 4b:
 
@@ -152,23 +176,25 @@ class ExchangeEconomyClass():
             # Calculate the demand for goods A using p1
 
             x1A, x2A = self.demand_A(p1)
-        
+
+            if 0 <= x1A <= 1 and 0 <= x2A <= 1:  # Check feasibility
+
             # Calculate the utility for goods A using the demand
-            utility = self.utility_A(x1A, x2A)
+
+                utility = self.utility_A(x1A, x2A)
         
             # Check if the utility is greater than the current maximum utility
 
-        if utility > max_utility:
+                if utility > max_utility:
 
-            # Update the maximum utility and the corresponding p1
+                # Update the maximum utility and the corresponding p1
 
-            max_utility = utility
-
-            max_p1_optimal_unrestricted = p1
+                    max_utility = utility
+                    max_p1_optimal_unrestricted = p1
     
-        # Return the optimal p1 value that maximizes utility
+            # Return the optimal p1 value that maximizes utility
 
-        return max_p1_optimal_unrestricted, 1  # Since p2 is the numeraire
+            return max_p1_optimal_unrestricted, 1  # Since p2 is the numeraire
 
     def optimal_allocation_4b(self):
 
@@ -180,13 +206,22 @@ class ExchangeEconomyClass():
 
         x1A_optimal_unrestricted, x2A_optimal_unrestricted = self.demand_A(p1_optimal_4b)
 
-        return x1A_optimal_unrestricted, x2A_optimal_unrestricted
+        x1A_rounded = round(x1A_optimal_unrestricted, 3)
+        x2A_rounded = round(x2A_optimal_unrestricted, 3)
 
-        # Question 5a
+        return x1A_rounded, x2A_rounded
+
+    # Question 5a
     def optimal_allocation_5a(self):
+
         # Get the utility maximizing allocation of (x1A, x2A) in set C
+
         x1A_optimal, x2A_optimal = self.utility_maximization_Cset()
-        return x1A_optimal, x2A_optimal
+
+        x1A_rounded = round(x1A_optimal, 3)
+        x2A_rounded = round(x2A_optimal, 3)
+
+        return x1A_rounded, x2A_rounded
 
     # Question 5b
 
@@ -196,7 +231,10 @@ class ExchangeEconomyClass():
 
         x1A_optimal, x2A_optimal = self.utility_maximization_no_restrictions_B()
 
-        return x1A_optimal, x2A_optimal
+        x1A_rounded = round(x1A_optimal, 3)
+        x2A_rounded = round(x2A_optimal, 3)
+
+        return x1A_rounded, x2A_rounded
 
     # Additional method for utility maximization in set C
 
@@ -227,9 +265,8 @@ class ExchangeEconomyClass():
             if utility_A > max_utility:
                 
                 max_utility = utility_A
-
                 x1A_optimal, x2A_optimal = x1A, x2A
-
+                
         return x1A_optimal, x2A_optimal
 
     # Additional method for utility maximization without restrictions, ensuring B's utility is not worse than initial endowment
@@ -263,12 +300,49 @@ class ExchangeEconomyClass():
                     if utility_A > max_utility:
 
                         max_utility = utility_A
-
                         x1A_optimal, x2A_optimal = x1A, x2A
 
         return x1A_optimal, x2A_optimal
     
+        #Question 6a
 
+    def utility_maximization_6a(self):
+
+        # Initialize maximum utility
+
+        max_utility = float('-inf')
+
+        # Initialize optimal allocation
+
+        x1A_optimal, x2A_optimal = None, None
+
+        # Iterate over each possible allocation in [0, 1] X [0, 1]
+
+        for x1A in np.linspace(0, 1, 100):
+
+            for x2A in np.linspace(0, 1, 100):
+
+                # Calculate utility for agent A
+
+                utility_6a = self.utility_A(x1A, x2A)+self.utility_B(1-x1A,1-x2A)
+
+                # Update optimal allocation if utility is higher
+
+                if utility_6a > max_utility:
+
+                    max_utility = utility_6a
+
+                    x1A_optimal, x2A_optimal = x1A, x2A
+
+        return x1A_optimal, x2A_optimal
+    
+    def optimal_allocation_6a(self):
+
+        # Get the utility maximizing allocation of (x1A, x2A) without restrictions
+
+        x1A_optimal, x2A_optimal = self.utility_maximization_6a()
+
+        return x1A_optimal, x2A_optimal
     
 
         
