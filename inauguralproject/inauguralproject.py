@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 import numpy as np
+from scipy import optimize
 
 class ExchangeEconomyClass():
 
@@ -357,15 +358,15 @@ class ExchangeEconomyClass():
         num_elements = 50
 
         # Generate random values for ωA1 and ωA2
-        par.w1A = np.random.uniform(0, 1, num_elements)
-        par.w2A = np.random.uniform(0, 1, num_elements)
+        w1A = np.random.uniform(0, 1, num_elements)
+        w2A = np.random.uniform(0, 1, num_elements)
 
         # Create a set W with pairs (ωA1, ωA2)
-        W = list(zip(par.w1A, par.w2A))
+        W = list(zip(w1A, w2A))
 
         return W
     
-    #Question 8: 
+    #Question 8:
 
     def market_clearing_allocation(self, endowment):
         par = self.par
@@ -401,37 +402,38 @@ class ExchangeEconomyClass():
             allocation = self.market_clearing_allocation(endowment)
             allocations.append(allocation)
         return allocations
-       
+    
+    def newdemand_A(self, p1, w1A, w2A):
+        return self.par.alpha*(p1*w1A+w2A)/p1, (1-self.par.alpha)*(p1*w1A+w2A)
 
+    def newdemand_B(self, p1, w1A, w2A):
+        w1B = 1 - w1A
+        w2B = 1 - w2A
+        return self.par.beta*(p1*w1B+w2B)/p1, (1-self.par.beta)*(p1*w1B+w2B)
 
+    def market_clearing_Q8(self, p1, w1A, w2A):
+        x1A, x2A = self.newdemand_A(p1, w1A, w2A)
+        x1B, x2B = self.newdemand_B(p1, w1A, w2A)
+        eps1 = x1A - w1A + x1B - (1 - w1A)
+        return eps1
+    
+    def optimize(self):
+        initial_guess = 0
+        bounds = [(0, np.inf)]
+        W = self.Wset()
+        allocations_Q8 = []
 
+        for w1A, w2A in W:
+            res = optimize.minimize(
+                lambda x: np.abs(self.market_clearing_Q8(x, w1A, w2A)),
+                initial_guess,
+                method='Nelder-Mead',
+                bounds=bounds
+            )
+            allocations_Q8.append(tuple(map(float, self.newdemand_A(res.x[0], w1A, w2A))))
+            
 
-
-
-
-
-
-
-        
-
-
-
-        
-
-
+        return allocations_Q8
     
 
-    
-        
-
-
-
-
-
-
-
-
-    
-
-    
     
