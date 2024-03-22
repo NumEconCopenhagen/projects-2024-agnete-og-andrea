@@ -418,7 +418,7 @@ class ExchangeEconomyClass():
         return eps1
     
     def optimize(self):
-        initial_guess = 0
+        initial_guess = 0.5
         bounds = [(0, np.inf)]
         W = self.Wset()
         allocations_Q8 = []
