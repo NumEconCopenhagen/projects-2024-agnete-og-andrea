@@ -1,7 +1,7 @@
 # \[Group name\]
 
 **Group members:**
-- Andrea Nørgaard
+- Andrea Nørgaard Andersen
 - Agnete Nielsen
 
 This repository contains  
