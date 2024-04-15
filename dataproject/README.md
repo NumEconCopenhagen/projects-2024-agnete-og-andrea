@@ -1,6 +1,6 @@
 # Data analysis project
 
-Our project is titled **PROJECT TITLE** and is about EXPLAIN.
+Our project is titled **DataProject: Population Projection in Denmark** and is about how the Danish population developes.
 
 The **results** of the project can be seen from running [dataproject.ipynb](dataproject.ipynb).
 
