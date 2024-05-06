@@ -1,4 +1,7 @@
 from scipy import optimize
+import numpy as np
+import scipy as sp
+import sympy as sm
 
 def solve_ss(alpha, c):
     """ Example function. Solve for steady state k. 
