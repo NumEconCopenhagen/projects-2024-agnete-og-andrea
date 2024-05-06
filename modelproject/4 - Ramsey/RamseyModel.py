@@ -27,11 +27,10 @@ class RamseyModelClass():
         # a. household
         par.sigma = 2.0 # CRRA coefficient
         par.beta = np.nan # discount factor
-        par.eta=1.0 #labor supply elasticity
-        par.b=0.985
+        par.nu=0.2 #labor supply elasticity
 
         #Define labor supply parameter
-        par.N=1.0
+        par.N_ini=1.0
 
         # b. firms
         par.Gamma = np.nan
@@ -53,11 +52,11 @@ class RamseyModelClass():
         par = self.par
         path = self.path
 
-        allvarnames = ['Gamma','K','C','rk','w','r','Y','K_lag','N']
+        allvarnames = ['Gamma','K','C','rk','w','r','Y','K_lag','L']
         for varname in allvarnames:
             path.__dict__[varname] =  np.nan*np.ones(par.Tpath)
 
-    def find_steady_state(self,KY_ss,do_print=True):
+    def find_steady_state(self,KY_ss,L_ss,do_print=True):
         """ find steady state """
 
         par = self.par
@@ -65,11 +64,12 @@ class RamseyModelClass():
 
         # a. find A
         ss.K = KY_ss
-        Y,_,_ = production(par,1.0,ss.K,1.0)
+        ss.L=L_ss
+        Y,_,_ = production(par,1.0,ss.K,ss.L)
         ss.Gamma = 1/Y
 
         # b. factor prices
-        ss.Y,ss.rk,ss.w = production(par,ss.Gamma,ss.K,1.0)
+        ss.Y,ss.rk,ss.w = production(par,ss.Gamma,ss.K,ss.L)
         assert np.isclose(ss.Y,1.0)
 
         ss.r = ss.rk-par.delta
@@ -89,7 +89,7 @@ class RamseyModelClass():
             print(f'w_ss = {ss.w:.4f}')
             print(f'Gamma = {ss.Gamma:.4f}')
             print(f'beta = {par.beta:.4f}')
-            print(f'eta = {par.eta:.4f}')
+            print(f'nu = {par.nu:.4f}')
 
     def evaluate_path_errors(self):
         """ evaluate errors along transition path """
@@ -101,21 +101,27 @@ class RamseyModelClass():
         # a. consumption        
         C = path.C
         C_plus = np.append(path.C[1:],ss.C)
+
+        #labor
+        L = path.L
+        L_plus = np.append(path.L[1:],ss.L)
         
         # b. capital
         K = path.K
         K_lag = path.K_lag = np.insert(K[:-1],0,par.K_lag_ini)
         
         # c. production and factor prices
-        path.Y,path.rk,path.w = production(par,path.Gamma,K_lag,1.0)
+        path.Y,path.rk,path.w = production(par,path.Gamma,K_lag,L_plus)
         path.r = path.rk-par.delta
         r_plus = np.append(path.r[1:],ss.r)
+        
+        w_ratio=np.append(path.w[1:]/path.w[:-1],1.0)
 
         # d. errors (also called H)
         errors = np.nan*np.ones((3,par.Tpath))
         errors[0,:] = C**(-par.sigma) - par.beta*(1+r_plus)*C_plus**(-par.sigma)
         errors[1,:] = K - ((1-par.delta)*K_lag + (path.Y - C))
-        errors[2, :] = par.b * (N * (1 + par.eta)) - (path.w / path.r) * (N * (1 + par.eta))
+        errors[2,:] = L**(-par.nu)+par.beta*(1+r_plus)*w_ratio*L_plus**(-par.nu)
         
         return errors.ravel()
         
@@ -127,17 +133,19 @@ class RamseyModelClass():
         path = self.path
         
         # a. allocate
-        Njac = 2*par.Tpath
-        jac = self.jac = np.nan*np.ones((Njac,Njac))
+        Njac = 3*par.Tpath
+        jac = self.jac = np.nan*np.ones((Njac,Njac,Njac))
         
-        x_ss = np.nan*np.ones((2,par.Tpath))
+        x_ss = np.nan*np.ones((3,par.Tpath))
         x_ss[0,:] = ss.C
         x_ss[1,:] = ss.K
+        x_ss[2,:] = ss.L
         x_ss = x_ss.ravel()
 
         # b. baseline errors
         path.C[:] = ss.C
         path.K[:] = ss.K
+        path.L[:] = ss.L
         base = self.evaluate_path_errors()
 
         # c. jacobian
@@ -146,11 +154,12 @@ class RamseyModelClass():
             # i. add small number to a single x (single K or C) 
             x_jac = x_ss.copy()
             x_jac[i] += h
-            x_jac = x_jac.reshape((2,par.Tpath))
+            x_jac = x_jac.reshape((3,par.Tpath))
             
             # ii. alternative errors
             path.C[:] = x_jac[0,:]
             path.K[:] = x_jac[1,:]
+            path.L[:] = x_jac[2,:]
             alt = self.evaluate_path_errors()
 
             # iii. numerical derivative
@@ -167,17 +176,19 @@ class RamseyModelClass():
         def eq_sys(x):
             
             # i. update
-            x = x.reshape((2,par.Tpath))
+            x = x.reshape((3,par.Tpath))
             path.C[:] = x[0,:]
             path.K[:] = x[1,:]
+            path.L[:] = x[2,:]
             
             # ii. return errors
             return self.evaluate_path_errors()
 
         # b. initial guess
-        x0 = np.nan*np.ones((2,par.Tpath))
+        x0 = np.nan*np.ones((3,par.Tpath))
         x0[0,:] = ss.C
         x0[1,:] = ss.K
+        x0[2,:] = ss.L
         x0 = x0.ravel()
 
         # c. call solver
@@ -202,27 +213,27 @@ class RamseyModelClass():
         # d. final evaluation
         eq_sys(x)
             
-def production(par,Gamma,K_lag,N):
+def production(par,Gamma,K_lag,L):
     """ production and factor prices """
 
     # a. production and factor prices
     if par.production_function == 'ces':
 
         # a. production
-        Y = Gamma*( par.alpha*K_lag**(-par.theta) + (1-par.alpha)*(N)**(-par.theta) )**(-1.0/par.theta)
+        Y = Gamma*( par.alpha*K_lag**(-par.theta) + (1-par.alpha)*(L)**(-par.theta) )**(-1.0/par.theta)
 
         # b. factor prices
         rk = Gamma*par.alpha*K_lag**(-par.theta-1) * (Y/Gamma)**(1.0+par.theta)
-        w = Gamma*(1-par.alpha)*(N)**(-par.theta-1) * (Y/Gamma)**(1.0+par.theta)
+        w = Gamma*(1-par.alpha)*(L)**(-par.theta-1) * (Y/Gamma)**(1.0+par.theta)
 
     elif par.production_function == 'cobb-douglas':
 
         # a. production
-        Y = Gamma*K_lag**par.alpha * (1.0)**(1-par.alpha)
+        Y = Gamma*K_lag**par.alpha * (L)**(1-par.alpha)
 
         # b. factor prices
-        rk = Gamma*par.alpha * K_lag**(par.alpha-1) * (N)**(1-par.alpha)
-        w = Gamma*(1-par.alpha) * K_lag**(par.alpha) * (N)**(-par.alpha)
+        rk = Gamma*par.alpha * K_lag**(par.alpha-1) * (L)**(1-par.alpha)
+        w = Gamma*(1-par.alpha) * K_lag**(par.alpha) * (L)**(-par.alpha)
 
     else:
 
