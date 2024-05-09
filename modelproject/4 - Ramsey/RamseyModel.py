@@ -30,7 +30,7 @@ class RamseyModelClass():
         par.nu=0.2 #labor supply elasticity
 
         #Define labor supply parameter
-        par.N_ini=1.0
+        par.L_ini=0.5
 
         # b. firms
         par.Gamma = np.nan
@@ -42,8 +42,11 @@ class RamseyModelClass():
         # c. initial
         par.K_lag_ini = 1.0
 
+        par.L_share = 0.5  # Set the initial share of time allocated to labor (between 0 and 1)
+
+
         # d. misc
-        par.solver = 'broyden' # solver for the equation system, 'broyden' or 'scipy'
+        par.solver = 'scipy' # solver for the equation system, 'broyden' or 'scipy'
         par.Tpath = 500 # length of transition path, "truncation horizon"
 
     def allocate(self):
@@ -64,13 +67,13 @@ class RamseyModelClass():
 
         # a. find A
         ss.K = KY_ss
-        ss.L=L_ss
+        ss.L = par.L_share  # Set steady-state labor as the initial share
         Y,_,_ = production(par,1.0,ss.K,ss.L)
         ss.Gamma = 1/Y
 
         # b. factor prices
         ss.Y,ss.rk,ss.w = production(par,ss.Gamma,ss.K,ss.L)
-        assert np.isclose(ss.Y,1.0)
+        assert np.allclose(ss.Y,1.0)
 
         ss.r = ss.rk-par.delta
         
@@ -90,6 +93,7 @@ class RamseyModelClass():
             print(f'Gamma = {ss.Gamma:.4f}')
             print(f'beta = {par.beta:.4f}')
             print(f'nu = {par.nu:.4f}')
+            print(f'L_ss = {ss.L:.4f}')
 
     def evaluate_path_errors(self):
         """ evaluate errors along transition path """
@@ -103,8 +107,8 @@ class RamseyModelClass():
         C_plus = np.append(path.C[1:],ss.C)
 
         #labor
-        L = path.L
-        L_plus = np.append(path.L[1:],ss.L)
+        L = par.L_share
+        L_plus = np.append(path.L[1:],par.L_share)
         
         # b. capital
         K = path.K
@@ -115,14 +119,14 @@ class RamseyModelClass():
         path.r = path.rk-par.delta
         r_plus = np.append(path.r[1:],ss.r)
         
-        w_ratio=np.append(path.w[1:]/path.w[:-1],1.0)
+        #w_ratio=np.append(path.w[1:]/path.w[:-1],1.0)
 
         # d. errors (also called H)
         errors = np.nan*np.ones((3,par.Tpath))
         errors[0,:] = C**(-par.sigma) - par.beta*(1+r_plus)*C_plus**(-par.sigma)
         errors[1,:] = K - ((1-par.delta)*K_lag + (path.Y - C))
-        errors[2,:] = L**(-par.nu)+par.beta*(1+r_plus)*w_ratio*L_plus**(-par.nu)
-        
+        errors[2,:] = L-(L**(-par.nu)+par.beta*(1+r_plus)*L_plus**(-par.nu))
+
         return errors.ravel()
         
     def calculate_jacobian(self,h=1e-6):
