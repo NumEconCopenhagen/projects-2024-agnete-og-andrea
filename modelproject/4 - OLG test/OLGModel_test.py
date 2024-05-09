@@ -26,14 +26,14 @@ class OLGModelClass():
 
         # a. household
         par.sigma = 2.0 # CRRA coefficient
-        par.beta = 0.95 # discount factor
+        par.beta = 0.99 # discount factor
         par.d = 0.10 # contributions to old
 
         # b. firms
         par.production_function = 'ces'
         par.alpha = 0.30 # capital weight
-        par.theta = 0.05 # substitution parameter
-        par.delta = 0.50 # depreciation rate
+        par.theta = 0.1 # substitution parameter
+        par.delta = 0.20 # depreciation rate
 
         # c. misc
         par.K_lag_ini = 1.0 # initial capital stock
