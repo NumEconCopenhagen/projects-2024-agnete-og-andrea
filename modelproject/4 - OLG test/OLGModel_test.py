@@ -33,7 +33,7 @@ class OLGModelClass():
         par.production_function = 'ces'
         par.alpha = 0.30 # capital weight
         par.theta = 0.05 # substitution parameter
-        par.delta = 0.20 # depreciation rate
+        par.delta = 0.50 # depreciation rate
 
         # c. misc
         par.K_lag_ini = 1.0 # initial capital stock
@@ -180,7 +180,7 @@ def simulate_before_s(par,sim,t):
     sim.r[t] = sim.rk[t]-par.delta 
 
     # c. consumption
-    sim.C2[t] = (1+sim.rt[t])*(sim.K_lag[t])
+    sim.C2[t] = (1+sim.r[t])*(sim.K_lag[t])
 
 def simulate_after_s(par,sim,t,s):
     """ simulate forward """
@@ -190,5 +190,5 @@ def simulate_after_s(par,sim,t,s):
 
     # b. end-of-period stocks
     #I = sim.Y[t] - sim.C1[t] - sim.C2[t]
-    sim.S[t]=s*sim.w[t]
-    sim.K[t] = (1-par.delta)*sim.K_lag[t] + sim.S[t]
+    #sim.S[t]=s*sim.w[t]
+    sim.K[t] = (1-par.delta)*sim.K_lag[t] + s*sim.w[t]
