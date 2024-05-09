@@ -207,7 +207,7 @@ def simulate_after_s(par,sim,t,s):
     """ simulate forward """
 
     # a. consumption of young
-    sim.C1[t] = (1.0-s)*((1-par.tau_w)*sim.w[t]-par.d)
+    sim.C1[t] = (1.0-s)*((1-par.tau_w)*sim.w[t] - par.d)
 
     # b. end-of-period stocks
     I = sim.Y[t] - sim.C1[t] - sim.C2[t] - sim.G[t]
