@@ -36,7 +36,7 @@ class OLGModelClass():
         par.delta = 0.20 # depreciation rate
 
         # c. misc
-        par.K_lag_ini = 1.0 # initial capital stock
+        par.K_lag_ini = 0.1 # initial capital stock
         par.simT = 50 # length of simulation
 
     def allocate(self):
