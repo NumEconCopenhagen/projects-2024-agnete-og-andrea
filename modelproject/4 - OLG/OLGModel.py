@@ -27,6 +27,7 @@ class OLGModelClass():
         # a. household
         par.sigma = 2.0 # CRRA coefficient
         par.beta = 1/1.40 # discount factor
+        par.n = 0 #population growth rate
 
         # b. firms
         par.production_function = 'ces'
@@ -37,6 +38,7 @@ class OLGModelClass():
         # c. government
         par.tau_w = 0.10 # labor income tax
         par.tau_r = 0.20 # capital income tax
+        par.d = 1.0 #pension contributions from the young
 
         # d. misc
         par.K_lag_ini = 1.0 # initial capital stock
@@ -50,7 +52,7 @@ class OLGModelClass():
         sim = self.sim
 
         # a. list of variables
-        household = ['C1','C2']
+        household = ['C1','C2', 'b']
         firm = ['K','Y','K_lag']
         prices = ['w','rk','rb','r','rt']
         government = ['G','T','B','balanced_budget','B_lag']
@@ -187,23 +189,25 @@ def simulate_before_s(par,sim,t):
     sim.r[t] = sim.rk[t]-par.delta # after-depreciation return
     sim.rb[t] = sim.r[t] # same return on bonds
     sim.rt[t] = (1-par.tau_r)*sim.r[t] # after-tax return
+    
+    sim.b[t]= (1+par.n)*par.d
 
     # c. consumption
-    sim.C2[t] = (1+sim.rt[t])*(sim.K_lag[t]+sim.B_lag[t])
+    sim.C2[t] = (1+sim.rt[t])*(sim.K_lag[t]+sim.B_lag[t]) + sim.b[t]
 
     # d. government
-    sim.T[t] = par.tau_r*sim.r[t]*(sim.K_lag[t]+sim.B_lag[t]) + par.tau_w*sim.w[t]
+    sim.T[t] = par.tau_r*sim.r[t]*(sim.K_lag[t]+sim.B_lag[t]) + par.tau_w*sim.w[t] + par.d
 
     if sim.balanced_budget[t]:
         sim.G[t] = sim.T[t] - sim.r[t]*sim.B_lag[t]
 
-    sim.B[t] = (1+sim.r[t])*sim.B_lag[t] - sim.T[t] + sim.G[t]
+    sim.B[t] = (1+sim.r[t])*sim.B_lag[t] - sim.T[t] + sim.G[t] + sim.b[t]
 
 def simulate_after_s(par,sim,t,s):
     """ simulate forward """
 
     # a. consumption of young
-    sim.C1[t] = (1-par.tau_w)*sim.w[t]*(1.0-s)
+    sim.C1[t] = (1.0-s)*((1-par.tau_w)*sim.w[t]-par.d)
 
     # b. end-of-period stocks
     I = sim.Y[t] - sim.C1[t] - sim.C2[t] - sim.G[t]
