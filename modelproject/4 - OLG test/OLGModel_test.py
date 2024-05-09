@@ -189,6 +189,6 @@ def simulate_after_s(par,sim,t,s):
     sim.C1[t] = sim.w[t]*(1.0-s)
 
     # b. end-of-period stocks
-    #I = sim.Y[t] - sim.C1[t] - sim.C2[t]
-    #sim.S[t]=s*sim.w[t]
-    sim.K[t] = (1-par.delta)*sim.K_lag[t] + s*sim.w[t]
+    #I = sim.Y[t] - sim.C1[t] - sim.C2[t] 
+    #S[t]=s*sim.w[t]
+    sim.K[t] = (1-par.delta)*sim.K_lag[t] 
