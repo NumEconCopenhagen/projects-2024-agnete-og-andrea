@@ -3,7 +3,7 @@ import time
 import numpy as np
 from scipy import optimize
 import sympy as sm
-
+'''
 def OLG_analytical(print_output=True):
     ##solving model for k*
     ##we define the parameters and functions:
@@ -25,7 +25,7 @@ def OLG_analytical(print_output=True):
     kt_1 = sm.symbols('k_{t-1}')
     k = sm.symbols('k*')
     # Define production function
-    f = alpha*Kt_1**(-theta)+(1-alpha)*(Lt)**(-theta)**(-1.0/theta)
+    f = (alpha*Kt_1**(-theta)+(1-alpha)*(Lt)**(-theta))**(-1.0/theta)
 
     # Solve for wage and MPK
     mpl = sm.diff(f, Lt)
@@ -39,12 +39,12 @@ def OLG_analytical(print_output=True):
     wt, rt_1 = sm.symbols('w_t, r_{t+1}')
     St = sm.symbols('S_t')
     C1t = (1-s)*wt
-    C2t_1 = (1+rt_1)*Kt_1
-    st = s*wt
+    C2t_1 = (1+rt_1)*Kt
+    st = 1-C1t
     U = C1t**(1-sigma)/(1-sigma)+beta*C2t_1**(1-sigma)/(1-sigma)
 
     # Find the derivative of U with respect to st
-    dU = sm.diff(U, St)
+    dU = sm.diff(U, 1-C1t)
 
     # Solve for s_t
     s_eq = sm.Eq(0, dU)
@@ -78,92 +78,7 @@ def OLG_analytical(print_output=True):
         display(Math(sm.latex(k_ss)))
 
     return f_kss
-
-#def OLG_analytical(print_output=True):
-    ##solving model for k*
-    ##we define the parameters and functions:
-    from IPython.display import display, Math
-
-    # Define parameters and variables
-    beta = sm.symbols('beta')
-    alpha = sm.symbols('alpha')
-    theta = sm.symbols('theta')
-    sigma = sm.symbols('sigma')
-    n = sm.symbols('n')
-    s = sm.symbols('s')
-    rt = sm.symbols('r_t')
-    wt = sm.symbols('w_t')
-    Kt = sm.symbols('K_t')
-    Kt_1 = sm.symbols('K_t-1')
-    Lt = sm.symbols('L_t')
-    kt = sm.symbols('k_t')
-    kt_1 = sm.symbols('k_{t-1}')
-    k = sm.symbols('k*')
-    # Define production function
-    f = alpha*Kt_1**(-theta)+(1-alpha)*(Lt)**(-theta)**(-1.0/theta)
-    Lt = 1.0
-
-    # Solve for wage and MPK
-    mpl = sm.diff(f, Lt)
-
-    #substitute in kt
-    #mpl_sub = mpl.subs(Kt**(alpha)*Lt**(1-alpha)*Lt**(-1), kt**alpha)
-    mpl_sub = mpl.subs(alpha * Kt**(-theta) + (1 - alpha) * Lt**(-theta)**(-1.0/theta), kt**alpha)
-    w_eq = sm.Eq(wt, mpl_sub)
-
-    # Define household utility
-    C1t, C2t_1 = sm.symbols('C_1t C_{2t+1}')
-    wt, rt_1 = sm.symbols('w_t, r_{t+1}')
-    St = sm.symbols('S_t')
-    C1t = (1-s)*wt
-    C2t_1 = (1+rt_1)*Kt_1
-    st = s*wt
-    U = C1t**(1-sigma)/(1-sigma)+beta*C2t_1**(1-sigma)/(1-sigma)
-
-    # Find the derivative of U with respect to st
-    dU = sm.diff(U, St)
-
-    #solve for s_t
-    s_eq = sm.Eq(0, dU)
-    st_path = sm.solve(s_eq, st)[0]
-
-    # Define the equation
-    st_path_sub=st_path.subs(wt, mpl_sub)
-
-    #we know that k_(t+1)=s_t/(1+n)
-    kt = st_path_sub
-
-    #As we are looking for steady state we can set k_(t+1)=k_t
-    kt_sub = kt.subs(kt_1, k)
-    ss_solve = sm.Eq(k, kt_sub)
-
-    k_ss = sm.solve(ss_solve, k)
-
-    #Analytical answer with our chosen parameter values
-    f_kss = sm.lambdify((alpha, n, beta), k_ss)
-
-    if print_output:
-        # Print the resulting equation
-        print("wage equation for w_t:")
-        display(Math(sm.latex(w_eq)))
-
-        print("differentiated utility:")
-        display(Math(sm.latex(dU)))
-
-        print('s_t:')
-        display(Math(sm.latex(st_path)))
-
-        print('s_t with w_t inserted:')
-        display(Math(sm.latex(st_path_sub)))
-
-        print('steady state for capital per capita')
-        display(Math(sm.latex(k_ss)))
-
-        print('steady state for capital per capita, numerically')
-        print(f_kss(0.3, 0.05, 0.99))
-    
-    #returns the theoretical solution, so it can be used for the comparisons to the analytical
-    return f_kss
+'''
 
 class OLGModelClass():
 
@@ -188,17 +103,18 @@ class OLGModelClass():
 
         # a. household
         par.sigma = 2.0 # CRRA coefficient
-        par.beta = 0.99 # discount factor
-        par.d = 0.10 # contributions to old
+        par.rho = 0.10 # discount factor
+        par.d = 1.0 # contributions to old
+        par.n = 0.02 # population growth rate
 
         # b. firms
-        par.production_function = 'ces'
+        par.production_function = 'cobb-douglas'
         par.alpha = 0.30 # capital weight
-        par.theta = 0.1 # substitution parameter
-        par.delta = 0.20 # depreciation rate
+        par.delta = 1.0 # depreciation rate
 
         # c. misc
-        par.K_lag_ini = 0.1 # initial capital stock
+        par.K_ini = 0.1 # initial capital stock
+        par.L_ini = 1.0 # initial labor stock
         par.simT = 50 # length of simulation
 
     def allocate(self):
@@ -209,8 +125,8 @@ class OLGModelClass():
 
         # a. list of variables
         household = ['C1','C2']
-        firm = ['K','Y','K_lag']
-        prices = ['w','rk','r']
+        firm = ['K','L','Y']
+        prices = ['w','r']
 
         # b. allocate
         allvarnames = household + firm + prices 
@@ -226,7 +142,8 @@ class OLGModelClass():
         sim = self.sim
         
         # a. initial values
-        sim.K_lag[0] = par.K_lag_ini
+        sim.K[0] = par.K_ini
+        sim.L[0] = par.L_ini
 
         # b. iterate
         for t in range(par.simT):
@@ -304,16 +221,20 @@ def calc_euler_error(s,par,sim,t):
     simulate_before_s(par,sim,t+1) # next period
 
     # c. Euler equation
-    LHS = sim.C1[t]**(-par.sigma)
-    RHS = (1+sim.r[t+1])*par.beta * sim.C2[t+1]**(-par.sigma)
+    LHS = 1/sim.C1[0]
+    RHS = ((1+sim.r[1])/(1+par.rho))*(1/sim.C2[1])
 
     return LHS-RHS
 
 def simulate_before_s(par,sim,t):
     """ simulate forward """
 
+    if t == 0:
+        sim.K[t] = par.K_ini
+        sim.L[t] = par.L_ini
+
     if t > 0:
-        sim.K_lag[t] = sim.K[t-1]
+        sim.L[t] = sim.L[t-1]*(1+par.n)
 
     # a. production and factor prices
     if par.production_function == 'ces':
@@ -328,29 +249,25 @@ def simulate_before_s(par,sim,t):
     elif par.production_function == 'cobb-douglas':
 
         # i. production
-        sim.Y[t] = sim.K_lag[t]**par.alpha * (1.0)**(1-par.alpha)
+        sim.Y[t] = sim.K[t]**par.alpha * (sim.L[t])**(1-par.alpha)
 
         # ii. factor prices
-        sim.rk[t] = par.alpha * sim.K_lag[t]**(par.alpha-1) * (1.0)**(1-par.alpha)
-        sim.w[t] = (1-par.alpha) * sim.K_lag[t]**(par.alpha) * (1.0)**(-par.alpha)
+        sim.r[t] = par.alpha * sim.K[t]**(par.alpha-1) * (sim.L[t])**(1-par.alpha)
+        sim.w[t] = (1-par.alpha) * sim.K[t]**(par.alpha) * (sim.L[t])**(-par.alpha)
 
     else:
 
         raise NotImplementedError('unknown type of production function')
 
-    # b. after-depreciation return
-    sim.r[t] = sim.rk[t]-par.delta 
-
     # c. consumption
-    sim.C2[t] = (1+sim.r[t])*(sim.K_lag[t])
+    sim.C2[t] = (1+par.n)*(1+sim.r[t])*(sim.K[t])+(1+par.n)*par.d
 
 def simulate_after_s(par,sim,t,s):
     """ simulate forward """
 
     # a. consumption of young
-    sim.C1[t] = sim.w[t]*(1.0-s)
+    sim.C1[t] = sim.w[t]-(1+par.n)*sim.K[t+1]+par.d
 
     # b. end-of-period stocks
-    #I = sim.Y[t] - sim.C1[t] - sim.C2[t] 
-    #S[t]=s*sim.w[t]
-    sim.K[t] = (1-par.delta)*sim.K_lag[t]+s*sim.w[t] 
+    I = sim.Y[t] - sim.C1[t] - sim.C2[t] 
+    sim.K[t+1] = (1-par.delta)*sim.K[t]+I/(1+par.n)
