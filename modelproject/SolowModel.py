@@ -4,6 +4,7 @@ import numpy as np
 from scipy import optimize
 import sympy as sm
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from IPython.display import display, Math
 
 def Solow_analytical():
@@ -272,4 +273,144 @@ class Solow_model():
         ax.set_ylabel(r'$k_t$', fontsize=14)
 
         # Show plot
+        plt.show()
+
+
+"""Extensions:"""
+
+def SolowHuman_analytical_capital():
+
+    k = sm.symbols('k')
+    A = sm.symbols('A')
+    h = sm.symbols('h')
+    alpha = sm.symbols('alpha')
+    delta = sm.symbols('delta')
+    phi = sm.symbols('phi')
+    sk = sm.symbols('sk')
+    sh = sm.symbols('sh')
+    g = sm.symbols('g')
+    n = sm.symbols('n')
+
+    #Define production function in per capita, technology adjusted terms:
+    f=k**alpha * h**phi
+
+    #The capital accumulation equation:
+    ss = sm.Eq(k,((sk*f+(1-delta)*k)/((1+n)*(1+g))))
+
+    #Solves the steady-state equation for the steady-state value of capital (k_ss) using SymPy's solve function and takes the first solution (assuming there's only one solution), storing it in the variable kss.
+    kss_k = sm.solve(ss,k)[0]
+
+    print('The steady state equation for k is:')
+
+    display(kss_k)
+
+def SolowHuman_analytical_humancapital():
+
+    k = sm.symbols('k')
+    A = sm.symbols('A')
+    h = sm.symbols('h')
+    alpha = sm.symbols('alpha')
+    delta = sm.symbols('delta')
+    phi = sm.symbols('phi')
+    sk = sm.symbols('sk')
+    sh = sm.symbols('sh')
+    g = sm.symbols('g')
+    n = sm.symbols('n')
+
+    #Define production function in per capita, technology adjusted terms:
+    f=k**alpha * h**phi
+
+    #The capital accumulation equation:
+    ss = sm.Eq(h,((sh*f+(1-delta)*h)/((1+n)*(1+g))))
+
+    #Solves the steady-state equation for the steady-state value of capital (k_ss) using SymPy's solve function and takes the first solution (assuming there's only one solution), storing it in the variable kss.
+    kss_h = sm.solve(ss,h)[0]
+
+    print('The steady state equation for h is:')
+
+    display(kss_h)
+
+
+def SolowHuman_analytical_combined():
+    # Symbols
+    k, h, alpha, delta, phi, sk, sh, g, n = sm.symbols('k h alpha delta phi sk sh g n')
+
+    # Production function
+    f = k**alpha * h**phi
+
+    # Capital accumulation equation
+    ss_k = sm.Eq(k, (sk*f + (1-delta)*k)/((1+n)*(1+g)))
+
+    # Human capital accumulation equation
+    ss_h = sm.Eq(h, (sh*f + (1-delta)*h)/((1+n)*(1+g)))
+
+    # Substitute steady-state expressions into each other's equations
+    ss_k_combined = ss_k.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
+    ss_h_combined = ss_h.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
+
+    print('The combined steady state equation for k is:')
+    display(ss_k_combined)
+
+    print('The combined steady state equation for h is:')
+    display(ss_h_combined)
+
+
+class SolowModelwithHumanCapital:
+    def __init__(self):
+        # Initialize parameter values as attributes of the class
+        self.alpha = 0.3
+        self.phi = 0.2
+        self.delta = 0.1
+        self.sk = 0.2  # Savings rate for capital
+        self.sh = 0.2  # Savings rate for human capital
+        self.A = 2.0
+        self.n = 0.02  # Labor growth rate
+        self.g = 0.02  # Technology growth rate
+
+    def run(self):
+        # Calculate the steady-state values for capital and human capital
+        #k_star = ((self.sk * self.A) / self.delta) ** (1 / (1 - self.alpha))
+        #h_star = ((self.sh * self.A) / self.delta) ** (1 / (1 - self.phi))
+
+        k_star = (((self.sk ** (1-self.phi))*(self.sh**self.phi)) / (self.n + self.g + self.delta + self.n*self.g))**(1/(1-self.alpha-self.phi))
+        h_star = (((self.sk ** self.alpha) * (self.sh ** (1 - self.alpha))) / (self.n + self.g + self.delta + self.n * self.g)) ** (1 / (1 - self.alpha - self.phi))
+
+        # Print the steady-state values for capital and human capital
+        print('Steady-state value for capital (k*):', k_star)
+        print('Steady-state value for human capital (h*):', h_star)
+
+    def production_function(self, k, h, A, L):
+        return (k ** self.alpha) * (h ** self.phi) * ((A * L) ** (1 - self.alpha - self.phi))
+
+    def transition_eq_capital(self, k, h):
+        return self.sk * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * h
+
+    def transition_eq_human_capital(self, k, h):
+        return self.sh * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * k
+
+    def plot_phase_diagram_transition_equations(self):
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 5, 1000)
+        h_vals = np.linspace(0.01, 5, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equations
+        z_capital = self.transition_eq_capital(K, H)
+        z_human_capital = self.transition_eq_human_capital(K, H)
+
+        # Plot the phase diagram
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations')
+
+        # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital')
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital')
+        ax.legend()
+
         plt.show()
