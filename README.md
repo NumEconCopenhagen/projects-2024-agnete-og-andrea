@@ -2,7 +2,7 @@
 
 **Group members:**
 - Andrea Nørgaard Andersen
-- Agnete Nielsen
+- Agnete Rebecca Eberhardt Nielsen
 
 This repository contains  
 1. Inaugural project. 
