@@ -278,6 +278,47 @@ class Solow_model():
 
 """Extensions:"""
 
+def Solow_chap8():
+    k, alpha, delta, phi, s, n = sm.symbols('k alpha delta phi s n')
+
+    # Step 3: Define the steady-state equation
+    k_next = (1 / (1 + n)) * k * (s * k**(alpha - 1) + (1 - delta))**(1 - phi)
+
+    # Step 4: Solve for the steady-state value of k
+    kss = sm.solve(sm.Eq(k_next, k), k)
+
+    kss_simplified = sm.simplify(kss[1])  # Selecting the non-trivial solution
+
+    # Step 6: Display the solution
+    print("Steady-state value of k:")
+    display(kss_simplified)
+
+    #Substituting into y:
+    y_ss=kss_simplified**alpha
+    print("Substituting the steady-state value of k into the SS equation for y yields the following steady-state value of y:")
+    display(y_ss)
+
+'''
+    # Technological progress (endogenous)
+    A_t = K**phi
+
+    # Capital accumulation equation
+    K_next = s * Y + (1 - delta) * K
+
+    # Output per effective worker equation
+    y = Y / L
+
+    # Steady-state equation for K_tilde
+    K_tilde_star_eq = sm.Eq(1 / (K**(1 - phi) * A_t), (s / delta)**(phi / (1 - alpha - alpha * phi)))
+
+    # Step 4: Solve for K_tilde_star
+    K_tilde_star = sm.solve(K_tilde_star_eq, K)
+
+    # Display the solution
+    print("Steady-state value of K_tilde:")
+    display(K_tilde_star)'''
+
+
 def SolowHuman_analytical_capital():
 
     k = sm.symbols('k')
@@ -286,8 +327,8 @@ def SolowHuman_analytical_capital():
     alpha = sm.symbols('alpha')
     delta = sm.symbols('delta')
     phi = sm.symbols('phi')
-    sk = sm.symbols('sk')
-    sh = sm.symbols('sh')
+    s_k = sm.symbols('s_k')
+    s_h = sm.symbols('s_h')
     g = sm.symbols('g')
     n = sm.symbols('n')
 
@@ -295,7 +336,7 @@ def SolowHuman_analytical_capital():
     f=k**alpha * h**phi
 
     #The capital accumulation equation:
-    ss = sm.Eq(k,((sk*f+(1-delta)*k)/((1+n)*(1+g))))
+    ss = sm.Eq(k,((s_k*f+(1-delta)*k)/((1+n)*(1+g))))
 
     #Solves the steady-state equation for the steady-state value of capital (k_ss) using SymPy's solve function and takes the first solution (assuming there's only one solution), storing it in the variable kss.
     kss_k = sm.solve(ss,k)[0]
@@ -312,8 +353,8 @@ def SolowHuman_analytical_humancapital():
     alpha = sm.symbols('alpha')
     delta = sm.symbols('delta')
     phi = sm.symbols('phi')
-    sk = sm.symbols('sk')
-    sh = sm.symbols('sh')
+    s_k = sm.symbols('s_k')
+    s_h = sm.symbols('s_h')
     g = sm.symbols('g')
     n = sm.symbols('n')
 
@@ -321,7 +362,7 @@ def SolowHuman_analytical_humancapital():
     f=k**alpha * h**phi
 
     #The capital accumulation equation:
-    ss = sm.Eq(h,((sh*f+(1-delta)*h)/((1+n)*(1+g))))
+    ss = sm.Eq(h,((s_h*f+(1-delta)*h)/((1+n)*(1+g))))
 
     #Solves the steady-state equation for the steady-state value of capital (k_ss) using SymPy's solve function and takes the first solution (assuming there's only one solution), storing it in the variable kss.
     kss_h = sm.solve(ss,h)[0]
@@ -333,16 +374,16 @@ def SolowHuman_analytical_humancapital():
 
 def SolowHuman_analytical_combined():
     # Symbols
-    k, h, alpha, delta, phi, sk, sh, g, n = sm.symbols('k h alpha delta phi sk sh g n')
+    k, h, alpha, delta, phi, s_k, s_h, g, n = sm.symbols('k h alpha delta phi s_k s_h g n')
 
     # Production function
     f = k**alpha * h**phi
 
     # Capital accumulation equation
-    ss_k = sm.Eq(k, (sk*f + (1-delta)*k)/((1+n)*(1+g)))
+    ss_k = sm.Eq(k, (s_k*f + (1-delta)*k)/((1+n)*(1+g)))
 
     # Human capital accumulation equation
-    ss_h = sm.Eq(h, (sh*f + (1-delta)*h)/((1+n)*(1+g)))
+    ss_h = sm.Eq(h, (s_h*f + (1-delta)*h)/((1+n)*(1+g)))
 
     # Substitute steady-state expressions into each other's equations
     ss_k_combined = ss_k.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
@@ -354,6 +395,41 @@ def SolowHuman_analytical_combined():
     print('The combined steady state equation for h is:')
     display(ss_h_combined)
 
+def SolowHuman_analytical_combined_test():
+    # Symbols
+    k, h, alpha, delta, phi, s_k, s_h, g, n = sm.symbols('k h alpha delta phi s_k s_h g n')
+
+    # Production function
+    f = k**alpha * h**phi
+
+    # Capital accumulation equation
+    ss_k = sm.Eq(k, (s_k * f + (1 - delta) * k) / ((1 + n) * (1 + g)))
+
+    # Human capital accumulation equation
+    ss_h = sm.Eq(h, (s_h * f + (1 - delta) * h) / ((1 + n) * (1 + g)))
+
+    # Solve for steady-state k and h
+    kss_expr = sm.solve(ss_k, k)[0]
+    hss_expr = sm.solve(ss_h, h)[0]
+
+    # Substitute h from hss_expr into kss_expr
+    kss_combined = kss_expr.subs(h, hss_expr)
+    hss_combined = hss_expr.subs(k, kss_expr)
+
+    # Simplify the expressions
+    kss_combined_simplified = sm.simplify(kss_combined)
+    hss_combined_simplified = sm.simplify(hss_combined)
+
+    print('The combined steady state equation for k is:')
+    display(kss_combined_simplified)
+
+    print('The combined steady state equation for h is:')
+    display(hss_combined_simplified)
+
+    isolated_k = sm.solve(k,kss_combined_simplified)
+    display(isolated_k)
+    isolated_h = sm.solve(h,hss_combined_simplified)
+    display(isolated_h)
 
 class SolowModelwithHumanCapital:
     def __init__(self):
