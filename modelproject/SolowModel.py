@@ -567,8 +567,10 @@ def SolowHuman_analytical_combined_test():
     display(hss_combined_simplified)
 
     isolated_k = sm.solve(k,kss_combined_simplified)
+    print("The analytical solution to k:")
     display(isolated_k)
     isolated_h = sm.solve(h,hss_combined_simplified)
+    print("The analytical solution to h:")
     display(isolated_h)
 
 class SolowModelwithHumanCapital:
