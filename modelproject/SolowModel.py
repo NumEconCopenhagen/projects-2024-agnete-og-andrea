@@ -265,7 +265,7 @@ class Solow_model():
         ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_original),
                 alpha=0.6, color='red', label=r'$k^*$')
         ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_shocked),
-                alpha=0.6, color='green', label=r'$k^*$_shock')
+                alpha=0.6, color='green', label=r'$k^*_{shock}$')
         ax.legend(fontsize=10)
 
         # Set labels for axes
@@ -278,7 +278,7 @@ class Solow_model():
 
 """Extensions:"""
 
-def Solow_chap8():
+def Solow_chap8_analytical():
     k, alpha, delta, phi, s, n = sm.symbols('k alpha delta phi s n')
 
     # Step 3: Define the steady-state equation
@@ -298,26 +298,166 @@ def Solow_chap8():
     print("Substituting the steady-state value of k into the SS equation for y yields the following steady-state value of y:")
     display(y_ss)
 
-'''
-    # Technological progress (endogenous)
-    A_t = K**phi
 
-    # Capital accumulation equation
-    K_next = s * Y + (1 - delta) * K
+class SolowModelWithTechProgress():
 
-    # Output per effective worker equation
-    y = Y / L
+    def __init__(self, alpha=0.3, delta=0.1, s=0.2, n=0.01, phi=0.5, k_min=0, k_max=4, ts_length=100):
+        self.alpha = alpha
+        self.delta = delta
+        self.s = s
+        self.n = n
+        self.phi = phi
+        self.k_min = k_min
+        self.k_max = k_max
+        self.ts_length = ts_length
+        self.newA = [self.alpha for _ in range(self.ts_length+1)]
 
-    # Steady-state equation for K_tilde
-    K_tilde_star_eq = sm.Eq(1 / (K**(1 - phi) * A_t), (s / delta)**(phi / (1 - alpha - alpha * phi)))
+    def production_function(self, k):
+        return k**self.alpha
 
-    # Step 4: Solve for K_tilde_star
-    K_tilde_star = sm.solve(K_tilde_star_eq, K)
+    def steady_state_equation(self, k):
+        lhs = k
+        rhs = (1 / (1 + self.n)) * k * (self.s * k**(self.alpha - 1) + (1 - self.delta))**(1 - self.phi)
+        return lhs - rhs
 
-    # Display the solution
-    print("Steady-state value of K_tilde:")
-    display(K_tilde_star)'''
+    def find_steady_state(self):
+        result = optimize.root_scalar(self.steady_state_equation, bracket=[0.1, 100], method='brentq')
+        k_steady_state = result.root
+        y_steady_state = self.production_function(k_steady_state)
 
+        #print('The steady state for k is', k_steady_state) 
+        #print('The steady state for y is', y_steady_state) 
+
+        return k_steady_state, y_steady_state
+    
+    def visual(self, k, A=99):
+        if A == 99:
+            A = self.alpha
+        return (1 / (1 + self.n)) * k * (self.s * k**(self.alpha - 1) + (1 - self.delta))**(1 - self.phi)
+    
+    def plot45(self):
+        xgrid = np.linspace(self.k_min, self.k_max, 12000)
+        fig, ax = plt.subplots()
+
+        ax.set_xlim(self.k_min, self.k_max)
+        ax.set_ylim(self.k_min, self.k_max)
+
+        visual_values = self.visual(xgrid)
+
+        x_ticks = np.arange(self.k_min, self.k_max + 1, 1)
+        y_ticks = np.arange(self.k_min, self.k_max + 1, 1)
+
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+
+        lb = r'$k_{t+1} = \frac{1}{1 + n} \cdot k_{t} \cdot \left(s \cdot k_{t}^{\alpha - 1} + (1 - \delta)\right)^{1 - \phi}$'
+
+        ax.plot(xgrid, visual_values, lw=2, alpha=0.6, label=lb)
+        ax.plot(xgrid, xgrid, 'k-', lw=1, alpha=0.7, label='$45^{\circ}$')
+
+        k_star, _ = self.find_steady_state()
+        ax.plot(k_star, k_star, 'go', ms=10, alpha=0.6)
+        ax.annotate(r'$k^* = {:.2f}$'.format(k_star),
+                    xy=(k_star, k_star),
+                    xycoords='data',
+                    xytext=(-40, -60),
+                    textcoords='offset points',
+                    fontsize=14,
+                    arrowprops=dict(arrowstyle="->"))
+
+        ax.legend(loc='upper left', frameon=False, fontsize=12)
+        ax.set_xlabel('$k_t$', fontsize=12)
+        ax.set_ylabel('$k_{t+1}$', fontsize=12)
+
+        plt.show()
+
+    def simulate(self, k_ini_values, A=[], dograph=True):
+        k_star, _ = self.find_steady_state()
+        ymin, ymax = 0, (k_star + 5)
+
+        if dograph:
+            fig, ax = plt.subplots(figsize=[11, 5])
+            ax.set_xlim(self.k_min, self.ts_length - 1)
+            ax.set_ylim(ymin, ymax)
+
+            ts = np.zeros(self.ts_length)
+
+            for k_init in k_ini_values:
+                ts[0] = k_init
+                for t in range(1, self.ts_length):
+                    ts[t] = self.visual(ts[t-1], A=self.newA[t])
+                ax.plot(np.arange(self.ts_length), ts, '-o', ms=4, alpha=0.6,
+                        label=r'$k_0=%g$' % k_init)
+                ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star),
+                        alpha=0.6, color='red', label=r'$k^*$')
+
+            ax.legend(fontsize=10)
+            ax.set_xlabel(r'$t$', fontsize=14)
+            ax.set_ylabel(r'$k_t$', fontsize=14)
+            plt.title('The transition of capital back to steady state')
+            plt.show()
+        else:
+            ts = np.zeros(self.ts_length)
+            for k_init in k_ini_values:
+                ts[0] = k_init
+                for t in range(1, self.ts_length):
+                    ts[t] = self.visual(ts[t-1], A=self.newA[t])
+            self.ts_1 = ts
+
+    def plot_combined(self, s_values):
+        xgrid = np.linspace(self.k_min, self.k_max, 12000)
+        fig, ax = plt.subplots(figsize=[10, 6])
+        ax.plot(xgrid, xgrid, 'k-', lw=1, alpha=0.7, label='$45^{\circ}$')
+
+        for s_val in s_values:
+            self.s = s_val
+            k_star, _ = self.find_steady_state()
+            visual_values = self.visual(xgrid)
+            ax.plot(xgrid, visual_values, label=f's={s_val}')
+            ax.plot(k_star, k_star, 'go', ms=10, alpha=0.6)
+            ax.text(k_star, k_star, f'$k^*={k_star:.2f}$', fontsize=10, va='bottom', ha='right')
+
+        ax.set_xlim(self.k_min, 4)
+        ax.set_ylim(self.k_min, 4)
+        ax.set_xticks(np.arange(self.k_min, 4 + 1, 1))
+        ax.set_yticks(np.arange(self.k_min, 4 + 1, 1))
+        ax.legend(loc='upper left', frameon=False, fontsize=10)
+        ax.set_xlabel('$k_t$', fontsize=12)
+        ax.set_ylabel('$k_{t+1}$', fontsize=12)
+        plt.title('Solow Model Dynamics for Different Savings Rates')
+        plt.show()
+
+    def plot_technology_shock_combined(self):
+        original_model = SolowModelWithTechProgress(alpha=self.alpha, delta=self.delta, s=self.s, n=self.n, phi=self.phi)
+        original_model.find_steady_state()
+
+        shocked_model = SolowModelWithTechProgress(alpha=self.alpha, delta=self.delta, s=self.s, n=self.n, phi=self.phi)
+        shocked_model.alpha = 0.4
+        for i in range(0, self.ts_length):
+            shocked_model.newA[i] = 0.4
+        shocked_model.find_steady_state()
+
+        original_model.simulate([5], dograph=False)
+        k_star_original = original_model.find_steady_state()[0]
+
+        shocked_model.simulate([5], dograph=False)
+        k_star_shocked = shocked_model.find_steady_state()[0]
+
+        ymin, ymax = 0, (k_star_original + 5)
+
+        fig, ax = plt.subplots(figsize=[11, 5])
+        ax.set_xlim(self.k_min, self.ts_length - 1)
+        ax.set_ylim(ymin, ymax)
+
+        ax.plot(np.arange(self.ts_length), shocked_model.ts_1, '-o', ms=4, alpha=0.6, label="shocked")
+        ax.plot(np.arange(self.ts_length), original_model.ts_1, '-o', ms=4, alpha=0.6, label="original")
+        ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_original), alpha=0.6, color='red', label=r'$k^*$')
+        ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_shocked), alpha=0.6, color='green', label=r'$k^*_{shock}$')
+        plt.title('Technology Shock to the Solow Model with Endogenous Technological Progress')
+        ax.legend(fontsize=10)
+        ax.set_xlabel(r'$t$', fontsize=14)
+        ax.set_ylabel(r'$k_t$', fontsize=14)
+        plt.show()
 
 def SolowHuman_analytical_capital():
 
