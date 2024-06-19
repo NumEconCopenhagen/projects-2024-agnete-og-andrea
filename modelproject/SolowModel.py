@@ -573,25 +573,26 @@ def SolowHuman_analytical_combined_test():
     print("The analytical solution to h:")
     display(isolated_h)
 
+
+
 class SolowModelwithHumanCapital:
     def __init__(self):
         # Initialize parameter values as attributes of the class
         self.alpha = 0.3
-        self.phi = 0.2
+        self.phi = 0.5
         self.delta = 0.1
-        self.sk = 0.2  # Savings rate for capital
-        self.sh = 0.2  # Savings rate for human capital
+        self.sk = 0.2  # Savings rate for capital (initial)
+        self.sh = 0.1  # Savings rate for human capital (initial)
         self.A = 2.0
-        self.n = 0.02  # Labor growth rate
+        self.n = 0.01  # Labor growth rate
         self.g = 0.02  # Technology growth rate
 
     def run(self):
         # Calculate the steady-state values for capital and human capital
-        #k_star = ((self.sk * self.A) / self.delta) ** (1 / (1 - self.alpha))
-        #h_star = ((self.sh * self.A) / self.delta) ** (1 / (1 - self.phi))
-
-        k_star = (((self.sk ** (1-self.phi))*(self.sh**self.phi)) / (self.n + self.g + self.delta + self.n*self.g))**(1/(1-self.alpha-self.phi))
-        h_star = (((self.sk ** self.alpha) * (self.sh ** (1 - self.alpha))) / (self.n + self.g + self.delta + self.n * self.g)) ** (1 / (1 - self.alpha - self.phi))
+        k_star = (((self.sk ** (1 - self.phi)) * (self.sh ** self.phi)) /
+                  (self.n + self.g + self.delta + self.n*self.g)) ** (1 / (1 - self.alpha - self.phi))
+        h_star = (((self.sk ** self.alpha) * (self.sh ** (1 - self.alpha))) /
+                  (self.n + self.g + self.delta + self.n*self.g)) ** (1 / (1 - self.alpha - self.phi))
 
         # Print the steady-state values for capital and human capital
         print('Steady-state value for capital (k*):', k_star)
@@ -600,23 +601,25 @@ class SolowModelwithHumanCapital:
     def production_function(self, k, h, A, L):
         return (k ** self.alpha) * (h ** self.phi) * ((A * L) ** (1 - self.alpha - self.phi))
 
-    def transition_eq_capital(self, k, h):
-        return self.sk * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * h
+    def transition_eq_capital(self, k, h, sk=None):
+        sk = sk if sk is not None else self.sk
+        return sk * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n*self.g) * k
 
-    def transition_eq_human_capital(self, k, h):
-        return self.sh * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * k
+    def transition_eq_human_capital(self, k, h, sh=None):
+        sh = sh if sh is not None else self.sh
+        return sh * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n*self.g) * h
 
     def plot_phase_diagram_transition_equations(self):
         # Create a grid of capital and human capital values
-        k_vals = np.linspace(0.01, 5, 1000)
-        h_vals = np.linspace(0.01, 5, 1000)
+        k_vals = np.linspace(0.01, 2, 1000)
+        h_vals = np.linspace(0.01, 2, 1000)
         K, H = np.meshgrid(k_vals, h_vals)
 
-        # Compute the transition equations
+        # Compute the transition equations for initial savings rate (self.sk, self.sh)
         z_capital = self.transition_eq_capital(K, H)
         z_human_capital = self.transition_eq_human_capital(K, H)
 
-        # Plot the phase diagram
+        # Plot the phase diagram for initial savings rate
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.contour(K, H, z_capital, levels=[0], colors='blue')
         ax.contour(K, H, z_human_capital, levels=[0], colors='red')
@@ -627,8 +630,110 @@ class SolowModelwithHumanCapital:
         ax.set_title('Phase Diagram with Transition Equations')
 
         # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_with_higher_savings(self, sk_high):
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 5, 1000)
+        h_vals = np.linspace(0.01, 5, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equation for higher savings rate (sk_high)
+        z_capital_high = self.transition_eq_capital(K, H, sk=sk_high)
+
+        # Plot the phase diagram with higher savings rate
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_capital_high, levels=[0], colors='green', linestyles='dashed')  # Use green color for the new curve
+
+        # Overlay the existing contours for comparison
+        z_capital = self.transition_eq_capital(K, H)  # Compute transition equation with initial savings rate
+        z_human_capital = self.transition_eq_human_capital(K, H)  # Compute transition equation for human capital
+
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations')
+
+        # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.plot([], [], color='green', linestyle='dashed', label='Transition Equation for Capital ($s_k$={})'.format(sk_high))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_with_higher_human_capital_savings(self, sh_high):
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 10, 1000)
+        h_vals = np.linspace(0.01, 10, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equation for higher human capital savings rate (sh_high)
+        z_human_capital_high = self.transition_eq_human_capital(K, H, sh=sh_high)
+
+        # Plot the phase diagram with higher human capital savings rate
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_human_capital_high, levels=[0], colors='purple', linestyles='dashed')  # Use purple color for the new curve
+
+        # Overlay the existing contours for comparison
+        z_capital = self.transition_eq_capital(K, H)  # Compute transition equation with initial savings rate
+        z_human_capital = self.transition_eq_human_capital(K, H)  # Compute transition equation for human capital
+
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations')
+
+        # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.plot([], [], color='purple', linestyle='dashed', label='Transition Equation for Human Capital ($s_h$={})'.format(sh_high))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_technology_shock(self, new_g):
+        # Save the original technology growth rate
+        original_g = self.g
+
+        # Set the new technology growth rate
+        self.g = new_g
+
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 2, 1000)
+        h_vals = np.linspace(0.01, 2, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equations for the new parameter values
+        z_capital = self.transition_eq_capital(K, H)
+        z_human_capital = self.transition_eq_human_capital(K, H)
+
+        # Plot the phase diagram with the new parameter values
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations (After Technology Shock)')
+
+        # Add legend
         ax.plot([], [], color='blue', label='Transition Equation for Capital')
         ax.plot([], [], color='red', label='Transition Equation for Human Capital')
         ax.legend()
+
+        # Reset the technology growth rate to the original value
+        self.g = original_g
 
         plt.show()
