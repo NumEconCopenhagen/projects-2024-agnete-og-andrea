@@ -278,7 +278,7 @@ class Solow_model():
 
 """Extensions:"""
 
-def Solow_chap8_analytical():
+def Solow_TechProg_analytical():
     k, alpha, delta, phi, s, n = sm.symbols('k alpha delta phi s n')
 
     # Step 3: Define the steady-state equation
@@ -513,29 +513,6 @@ def SolowHuman_analytical_humancapital():
 
 
 def SolowHuman_analytical_combined():
-    # Symbols
-    k, h, alpha, delta, phi, s_k, s_h, g, n = sm.symbols('k h alpha delta phi s_k s_h g n')
-
-    # Production function
-    f = k**alpha * h**phi
-
-    # Capital accumulation equation
-    ss_k = sm.Eq(k, (s_k*f + (1-delta)*k)/((1+n)*(1+g)))
-
-    # Human capital accumulation equation
-    ss_h = sm.Eq(h, (s_h*f + (1-delta)*h)/((1+n)*(1+g)))
-
-    # Substitute steady-state expressions into each other's equations
-    ss_k_combined = ss_k.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
-    ss_h_combined = ss_h.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
-
-    print('The combined steady state equation for k is:')
-    display(ss_k_combined)
-
-    print('The combined steady state equation for h is:')
-    display(ss_h_combined)
-
-def SolowHuman_analytical_combined_test():
     # Symbols
     k, h, alpha, delta, phi, s_k, s_h, g, n = sm.symbols('k h alpha delta phi s_k s_h g n')
 
