@@ -265,7 +265,7 @@ class Solow_model():
         ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_original),
                 alpha=0.6, color='red', label=r'$k^*$')
         ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_shocked),
-                alpha=0.6, color='green', label=r'$k^*$_shock')
+                alpha=0.6, color='green', label=r'$k^*_{shock}$')
         ax.legend(fontsize=10)
 
         # Set labels for axes
@@ -278,7 +278,7 @@ class Solow_model():
 
 """Extensions:"""
 
-def Solow_chap8():
+def Solow_TechProg_analytical():
     k, alpha, delta, phi, s, n = sm.symbols('k alpha delta phi s n')
 
     # Step 3: Define the steady-state equation
@@ -298,26 +298,166 @@ def Solow_chap8():
     print("Substituting the steady-state value of k into the SS equation for y yields the following steady-state value of y:")
     display(y_ss)
 
-'''
-    # Technological progress (endogenous)
-    A_t = K**phi
 
-    # Capital accumulation equation
-    K_next = s * Y + (1 - delta) * K
+class SolowModelWithTechProgress():
 
-    # Output per effective worker equation
-    y = Y / L
+    def __init__(self, alpha=0.3, delta=0.1, s=0.2, n=0.01, phi=0.5, k_min=0, k_max=4, ts_length=100):
+        self.alpha = alpha
+        self.delta = delta
+        self.s = s
+        self.n = n
+        self.phi = phi
+        self.k_min = k_min
+        self.k_max = k_max
+        self.ts_length = ts_length
+        self.newA = [self.alpha for _ in range(self.ts_length+1)]
 
-    # Steady-state equation for K_tilde
-    K_tilde_star_eq = sm.Eq(1 / (K**(1 - phi) * A_t), (s / delta)**(phi / (1 - alpha - alpha * phi)))
+    def production_function(self, k):
+        return k**self.alpha
 
-    # Step 4: Solve for K_tilde_star
-    K_tilde_star = sm.solve(K_tilde_star_eq, K)
+    def steady_state_equation(self, k):
+        lhs = k
+        rhs = (1 / (1 + self.n)) * k * (self.s * k**(self.alpha - 1) + (1 - self.delta))**(1 - self.phi)
+        return lhs - rhs
 
-    # Display the solution
-    print("Steady-state value of K_tilde:")
-    display(K_tilde_star)'''
+    def find_steady_state(self):
+        result = optimize.root_scalar(self.steady_state_equation, bracket=[0.1, 100], method='brentq')
+        k_steady_state = result.root
+        y_steady_state = self.production_function(k_steady_state)
 
+        #print('The steady state for k is', k_steady_state) 
+        #print('The steady state for y is', y_steady_state) 
+
+        return k_steady_state, y_steady_state
+    
+    def visual(self, k, A=99):
+        if A == 99:
+            A = self.alpha
+        return (1 / (1 + self.n)) * k * (self.s * k**(self.alpha - 1) + (1 - self.delta))**(1 - self.phi)
+    
+    def plot45(self):
+        xgrid = np.linspace(self.k_min, self.k_max, 12000)
+        fig, ax = plt.subplots()
+
+        ax.set_xlim(self.k_min, self.k_max)
+        ax.set_ylim(self.k_min, self.k_max)
+
+        visual_values = self.visual(xgrid)
+
+        x_ticks = np.arange(self.k_min, self.k_max + 1, 1)
+        y_ticks = np.arange(self.k_min, self.k_max + 1, 1)
+
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+
+        lb = r'$k_{t+1} = \frac{1}{1 + n} \cdot k_{t} \cdot \left(s \cdot k_{t}^{\alpha - 1} + (1 - \delta)\right)^{1 - \phi}$'
+
+        ax.plot(xgrid, visual_values, lw=2, alpha=0.6, label=lb)
+        ax.plot(xgrid, xgrid, 'k-', lw=1, alpha=0.7, label='$45^{\circ}$')
+
+        k_star, _ = self.find_steady_state()
+        ax.plot(k_star, k_star, 'go', ms=10, alpha=0.6)
+        ax.annotate(r'$k^* = {:.2f}$'.format(k_star),
+                    xy=(k_star, k_star),
+                    xycoords='data',
+                    xytext=(-40, -60),
+                    textcoords='offset points',
+                    fontsize=14,
+                    arrowprops=dict(arrowstyle="->"))
+
+        ax.legend(loc='upper left', frameon=False, fontsize=12)
+        ax.set_xlabel('$k_t$', fontsize=12)
+        ax.set_ylabel('$k_{t+1}$', fontsize=12)
+
+        plt.show()
+
+    def simulate(self, k_ini_values, A=[], dograph=True):
+        k_star, _ = self.find_steady_state()
+        ymin, ymax = 0, (k_star + 5)
+
+        if dograph:
+            fig, ax = plt.subplots(figsize=[11, 5])
+            ax.set_xlim(self.k_min, self.ts_length - 1)
+            ax.set_ylim(ymin, ymax)
+
+            ts = np.zeros(self.ts_length)
+
+            for k_init in k_ini_values:
+                ts[0] = k_init
+                for t in range(1, self.ts_length):
+                    ts[t] = self.visual(ts[t-1], A=self.newA[t])
+                ax.plot(np.arange(self.ts_length), ts, '-o', ms=4, alpha=0.6,
+                        label=r'$k_0=%g$' % k_init)
+                ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star),
+                        alpha=0.6, color='red', label=r'$k^*$')
+
+            ax.legend(fontsize=10)
+            ax.set_xlabel(r'$t$', fontsize=14)
+            ax.set_ylabel(r'$k_t$', fontsize=14)
+            plt.title('The transition of capital back to steady state')
+            plt.show()
+        else:
+            ts = np.zeros(self.ts_length)
+            for k_init in k_ini_values:
+                ts[0] = k_init
+                for t in range(1, self.ts_length):
+                    ts[t] = self.visual(ts[t-1], A=self.newA[t])
+            self.ts_1 = ts
+
+    def plot_combined(self, s_values):
+        xgrid = np.linspace(self.k_min, self.k_max, 12000)
+        fig, ax = plt.subplots(figsize=[10, 6])
+        ax.plot(xgrid, xgrid, 'k-', lw=1, alpha=0.7, label='$45^{\circ}$')
+
+        for s_val in s_values:
+            self.s = s_val
+            k_star, _ = self.find_steady_state()
+            visual_values = self.visual(xgrid)
+            ax.plot(xgrid, visual_values, label=f's={s_val}')
+            ax.plot(k_star, k_star, 'go', ms=10, alpha=0.6)
+            ax.text(k_star, k_star, f'$k^*={k_star:.2f}$', fontsize=10, va='bottom', ha='right')
+
+        ax.set_xlim(self.k_min, 4)
+        ax.set_ylim(self.k_min, 4)
+        ax.set_xticks(np.arange(self.k_min, 4 + 1, 1))
+        ax.set_yticks(np.arange(self.k_min, 4 + 1, 1))
+        ax.legend(loc='upper left', frameon=False, fontsize=10)
+        ax.set_xlabel('$k_t$', fontsize=12)
+        ax.set_ylabel('$k_{t+1}$', fontsize=12)
+        plt.title('Solow Model Dynamics for Different Savings Rates')
+        plt.show()
+
+    def plot_technology_shock_combined(self):
+        original_model = SolowModelWithTechProgress(alpha=self.alpha, delta=self.delta, s=self.s, n=self.n, phi=self.phi)
+        original_model.find_steady_state()
+
+        shocked_model = SolowModelWithTechProgress(alpha=self.alpha, delta=self.delta, s=self.s, n=self.n, phi=self.phi)
+        shocked_model.alpha = 0.4
+        for i in range(0, self.ts_length):
+            shocked_model.newA[i] = 0.4
+        shocked_model.find_steady_state()
+
+        original_model.simulate([5], dograph=False)
+        k_star_original = original_model.find_steady_state()[0]
+
+        shocked_model.simulate([5], dograph=False)
+        k_star_shocked = shocked_model.find_steady_state()[0]
+
+        ymin, ymax = 0, (k_star_original + 5)
+
+        fig, ax = plt.subplots(figsize=[11, 5])
+        ax.set_xlim(self.k_min, self.ts_length - 1)
+        ax.set_ylim(ymin, ymax)
+
+        ax.plot(np.arange(self.ts_length), shocked_model.ts_1, '-o', ms=4, alpha=0.6, label="shocked")
+        ax.plot(np.arange(self.ts_length), original_model.ts_1, '-o', ms=4, alpha=0.6, label="original")
+        ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_original), alpha=0.6, color='red', label=r'$k^*$')
+        ax.plot(np.arange(self.ts_length), np.full(self.ts_length, k_star_shocked), alpha=0.6, color='green', label=r'$k^*_{shock}$')
+        plt.title('Technology Shock to the Solow Model with Endogenous Technological Progress')
+        ax.legend(fontsize=10)
+        ax.set_xlabel(r'$t$', fontsize=14)
+        ax.set_ylabel(r'$k_t$', fontsize=14)
+        plt.show()
 
 def SolowHuman_analytical_capital():
 
@@ -380,29 +520,6 @@ def SolowHuman_analytical_combined():
     f = k**alpha * h**phi
 
     # Capital accumulation equation
-    ss_k = sm.Eq(k, (s_k*f + (1-delta)*k)/((1+n)*(1+g)))
-
-    # Human capital accumulation equation
-    ss_h = sm.Eq(h, (s_h*f + (1-delta)*h)/((1+n)*(1+g)))
-
-    # Substitute steady-state expressions into each other's equations
-    ss_k_combined = ss_k.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
-    ss_h_combined = ss_h.subs({k: sm.solve(ss_k, k)[0], h: sm.solve(ss_h, h)[0]})
-
-    print('The combined steady state equation for k is:')
-    display(ss_k_combined)
-
-    print('The combined steady state equation for h is:')
-    display(ss_h_combined)
-
-def SolowHuman_analytical_combined_test():
-    # Symbols
-    k, h, alpha, delta, phi, s_k, s_h, g, n = sm.symbols('k h alpha delta phi s_k s_h g n')
-
-    # Production function
-    f = k**alpha * h**phi
-
-    # Capital accumulation equation
     ss_k = sm.Eq(k, (s_k * f + (1 - delta) * k) / ((1 + n) * (1 + g)))
 
     # Human capital accumulation equation
@@ -427,29 +544,32 @@ def SolowHuman_analytical_combined_test():
     display(hss_combined_simplified)
 
     isolated_k = sm.solve(k,kss_combined_simplified)
+    print("The analytical solution to k:")
     display(isolated_k)
     isolated_h = sm.solve(h,hss_combined_simplified)
+    print("The analytical solution to h:")
     display(isolated_h)
+
+
 
 class SolowModelwithHumanCapital:
     def __init__(self):
         # Initialize parameter values as attributes of the class
         self.alpha = 0.3
-        self.phi = 0.2
+        self.phi = 0.5
         self.delta = 0.1
-        self.sk = 0.2  # Savings rate for capital
-        self.sh = 0.2  # Savings rate for human capital
+        self.sk = 0.2  # Savings rate for capital (initial)
+        self.sh = 0.1  # Savings rate for human capital (initial)
         self.A = 2.0
-        self.n = 0.02  # Labor growth rate
+        self.n = 0.01  # Labor growth rate
         self.g = 0.02  # Technology growth rate
 
     def run(self):
         # Calculate the steady-state values for capital and human capital
-        #k_star = ((self.sk * self.A) / self.delta) ** (1 / (1 - self.alpha))
-        #h_star = ((self.sh * self.A) / self.delta) ** (1 / (1 - self.phi))
-
-        k_star = (((self.sk ** (1-self.phi))*(self.sh**self.phi)) / (self.n + self.g + self.delta + self.n*self.g))**(1/(1-self.alpha-self.phi))
-        h_star = (((self.sk ** self.alpha) * (self.sh ** (1 - self.alpha))) / (self.n + self.g + self.delta + self.n * self.g)) ** (1 / (1 - self.alpha - self.phi))
+        k_star = (((self.sk ** (1 - self.phi)) * (self.sh ** self.phi)) /
+                  (self.n + self.g + self.delta + self.n*self.g)) ** (1 / (1 - self.alpha - self.phi))
+        h_star = (((self.sk ** self.alpha) * (self.sh ** (1 - self.alpha))) /
+                  (self.n + self.g + self.delta + self.n*self.g)) ** (1 / (1 - self.alpha - self.phi))
 
         # Print the steady-state values for capital and human capital
         print('Steady-state value for capital (k*):', k_star)
@@ -458,23 +578,25 @@ class SolowModelwithHumanCapital:
     def production_function(self, k, h, A, L):
         return (k ** self.alpha) * (h ** self.phi) * ((A * L) ** (1 - self.alpha - self.phi))
 
-    def transition_eq_capital(self, k, h):
-        return self.sk * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * h
+    def transition_eq_capital(self, k, h, sk=None):
+        sk = sk if sk is not None else self.sk
+        return sk * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n*self.g) * k
 
-    def transition_eq_human_capital(self, k, h):
-        return self.sh * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n * self.g) * k
+    def transition_eq_human_capital(self, k, h, sh=None):
+        sh = sh if sh is not None else self.sh
+        return sh * k ** self.alpha * h ** self.phi - (self.n + self.g + self.delta + self.n*self.g) * h
 
     def plot_phase_diagram_transition_equations(self):
         # Create a grid of capital and human capital values
-        k_vals = np.linspace(0.01, 5, 1000)
-        h_vals = np.linspace(0.01, 5, 1000)
+        k_vals = np.linspace(0.01, 2, 1000)
+        h_vals = np.linspace(0.01, 2, 1000)
         K, H = np.meshgrid(k_vals, h_vals)
 
-        # Compute the transition equations
+        # Compute the transition equations for initial savings rate (self.sk, self.sh)
         z_capital = self.transition_eq_capital(K, H)
         z_human_capital = self.transition_eq_human_capital(K, H)
 
-        # Plot the phase diagram
+        # Plot the phase diagram for initial savings rate
         fig, ax = plt.subplots(figsize=(8, 6))
         ax.contour(K, H, z_capital, levels=[0], colors='blue')
         ax.contour(K, H, z_human_capital, levels=[0], colors='red')
@@ -485,8 +607,110 @@ class SolowModelwithHumanCapital:
         ax.set_title('Phase Diagram with Transition Equations')
 
         # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_with_higher_savings(self, sk_high):
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 5, 1000)
+        h_vals = np.linspace(0.01, 5, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equation for higher savings rate (sk_high)
+        z_capital_high = self.transition_eq_capital(K, H, sk=sk_high)
+
+        # Plot the phase diagram with higher savings rate
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_capital_high, levels=[0], colors='green', linestyles='dashed')  # Use green color for the new curve
+
+        # Overlay the existing contours for comparison
+        z_capital = self.transition_eq_capital(K, H)  # Compute transition equation with initial savings rate
+        z_human_capital = self.transition_eq_human_capital(K, H)  # Compute transition equation for human capital
+
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations')
+
+        # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.plot([], [], color='green', linestyle='dashed', label='Transition Equation for Capital ($s_k$={})'.format(sk_high))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_with_higher_human_capital_savings(self, sh_high):
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 10, 1000)
+        h_vals = np.linspace(0.01, 10, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equation for higher human capital savings rate (sh_high)
+        z_human_capital_high = self.transition_eq_human_capital(K, H, sh=sh_high)
+
+        # Plot the phase diagram with higher human capital savings rate
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_human_capital_high, levels=[0], colors='purple', linestyles='dashed')  # Use purple color for the new curve
+
+        # Overlay the existing contours for comparison
+        z_capital = self.transition_eq_capital(K, H)  # Compute transition equation with initial savings rate
+        z_human_capital = self.transition_eq_human_capital(K, H)  # Compute transition equation for human capital
+
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations')
+
+        # Add legend
+        ax.plot([], [], color='blue', label='Transition Equation for Capital ($s_k$={})'.format(self.sk))
+        ax.plot([], [], color='red', label='Transition Equation for Human Capital ($s_h$={})'.format(self.sh))
+        ax.plot([], [], color='purple', linestyle='dashed', label='Transition Equation for Human Capital ($s_h$={})'.format(sh_high))
+        ax.legend()
+
+        plt.show()
+
+    def plot_phase_diagram_technology_shock(self, new_g):
+        # Save the original technology growth rate
+        original_g = self.g
+
+        # Set the new technology growth rate
+        self.g = new_g
+
+        # Create a grid of capital and human capital values
+        k_vals = np.linspace(0.01, 2, 1000)
+        h_vals = np.linspace(0.01, 2, 1000)
+        K, H = np.meshgrid(k_vals, h_vals)
+
+        # Compute the transition equations for the new parameter values
+        z_capital = self.transition_eq_capital(K, H)
+        z_human_capital = self.transition_eq_human_capital(K, H)
+
+        # Plot the phase diagram with the new parameter values
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.contour(K, H, z_capital, levels=[0], colors='blue')
+        ax.contour(K, H, z_human_capital, levels=[0], colors='red')
+
+        # Add labels and title
+        ax.set_xlabel('Capital ($k_{t}$)')
+        ax.set_ylabel('Human Capital ($h_{t}$)')
+        ax.set_title('Phase Diagram with Transition Equations (After Technology Shock)')
+
+        # Add legend
         ax.plot([], [], color='blue', label='Transition Equation for Capital')
         ax.plot([], [], color='red', label='Transition Equation for Human Capital')
         ax.legend()
+
+        # Reset the technology growth rate to the original value
+        self.g = original_g
 
         plt.show()
