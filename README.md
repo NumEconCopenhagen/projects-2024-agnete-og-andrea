@@ -1,4 +1,4 @@
-# \Agnete and Andrea\
+# Agnete and Andreas
 
 **Group members:**
 - Andrea Nørgaard Andersen
