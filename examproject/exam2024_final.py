@@ -194,53 +194,62 @@ class ProductionEconomy:
         p1_eq, p2_eq = self.equilibrium_prices(w=1, tau=0, T=0)
         print(f"Equilibrium prices: p1 = {p1_eq}, p2 = {p2_eq}")
 
-    ## QUESTION 3:
+    # QUESTION 3
+
+    '''
+    We now want to maximize the social welfare function with regards to the co2 tax. 
+    We do this with a for loop after defining the social welfare function.
+    We define the utility maximization problem for the consumer such that tau is a variable, and T is a function of tau.
+    We make sure the consumption of good 2 and the optimal labor is found again without the initial values of tau and T. 
+    '''
 
     def social_welfare_function(self, w, tau, T):
 
         par = self.par
+
         p1, p2 = self.equilibrium_prices(w, tau, T)
         optimal_labor = self.consumer_problem([p1], [p2], w, tau, T)
         c1, c2 = self.consumption(optimal_labor, [p1], [p2], w, tau, T)
         T = tau * c2[0, 0]  # Update T based on tau and c2
         utility_value = self.utility(optimal_labor[0, 0], w, p1, p2, tau, T)
         SWF = utility_value - par.kappa * self.optimal_output(w, p2)
-        return SWF
-    
-    def max_SWF(self, w, tau_range, T):
+
+        return SWF, c2[0, 0]  # Return SWF and c2 for updating T
+
+    def max_SWF(self, w, tau_range):
+
         max_SWF = -np.inf
         optimal_tau = None
+        implied_T = None
 
         for tau in tau_range:
-            p1, p2 = self.equilibrium_prices(w, tau, T)
-            optimal_labor = self.consumer_problem([p1], [p2], w, tau, T)
-            c1, c2 = self.consumption(optimal_labor, [p1], [p2], w, tau, T)
-            T = tau * c2[0, 0]  # Update T based on tau and c2
-            SWF = self.social_welfare_function(w, tau, T)
+            T = 0.0
+            T_new = T
+
+            for _ in range(100):  
+                SWF, c2 = self.social_welfare_function(w, tau, T)
+                T_new = tau * c2
+                if np.isclose(T, T_new, atol=1e-6):  
+                    break
+                T = T_new
 
             if SWF > max_SWF:
                 max_SWF = SWF
                 optimal_tau = tau
+                implied_T = T_new
 
-        return max_SWF, optimal_tau
+        return max_SWF, optimal_tau, implied_T
     
-    def maximize_SWF_with_respect_to_tau(self, w, tau_range, T):
-        SWF_values = []
-        for tau in tau_range:
-            
-            p1, p2 = self.equilibrium_prices(w, tau, T)
-            optimal_labor = self.consumer_problem([p1], [p2], w, tau, T)
-            c1, c2 = self.consumption(optimal_labor, [p1], [p2], w, tau, T)
-            T = tau * c2[0, 0]  # Update T based on tau and c2
-            SWF = self.social_welfare_function(w, tau, T)
-            SWF_values.append(SWF)
+    def question_3(self):
+        
+        w = 1.0
+        tau_range = np.linspace(0.0, 1.0, 50)
+        max_SWF, optimal_tau, implied_T = self.max_SWF(w, tau_range)
 
-            max_index = np.argmax(SWF_values)
-            max_SWF = SWF_values[max_index]
-            optimal_tau = tau_range[max_index]
+        print("The optimal CO2 tax is:", optimal_tau)
+        print("The maximum social welfare given the optimal CO2 tax is:", max_SWF)
+        print("The implied T is:", implied_T)
 
-        return max_SWF, optimal_tau
-    
 class CareerChoiceModel():
     def __init__(self, par):
         """Define the parameters"""
